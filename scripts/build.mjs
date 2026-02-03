@@ -104,7 +104,13 @@ writeFileSync(join(iconsDir, "favicon.svg"), iconSvg);
 writeFileSync(join(iconsDir, "favicon.png"), Buffer.from(iconSvg)); // Placeholder - in real use, convert to PNG
 writeFileSync(join(iconsDir, "favicon@0.5x.png"), Buffer.from(iconSvg)); // Placeholder
 
-// Build XPI
+// Build development XPI for quick installation
+const devXpiName = `${config.addonRef}-dev.xpi`;
+const devXpiPath = join(rootDir, devXpiName);
+await compressing.zip.compressDir(buildDir, devXpiPath);
+console.log(`Dev XPI created: ${devXpiName}`);
+
+// Build production XPI when releasing
 if (isProduction) {
   const xpiName = `${config.addonRef}-${pkg.version}.xpi`;
   const xpiPath = join(rootDir, xpiName);
