@@ -11,6 +11,12 @@ treestyletabs-context-expand-all = Expand All
 treestyletabs-context-make-root = Make Root Tab
 treestyletabs-context-move-up = Move Up
 treestyletabs-context-move-down = Move Down
+treestyletabs-context-rename-group = Rename Group
+treestyletabs-context-delete-group = Delete Group
+
+treestyletabs-toolbar-new-group = New Group
+treestyletabs-toolbar-toggle = Toggle Sidebar
+treestyletabs-toolbar-show = Show Sidebar
 
 treestyletabs-pref-title = Tree Style Tabs Preferences
 treestyletabs-pref-display = Display Settings

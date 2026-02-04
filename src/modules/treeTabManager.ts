@@ -19,6 +19,7 @@ export class TreeTabManager {
   static init(win: Window) {
     this.win = win;
     this.loadTreeStructure();
+    this.recalculateLevels();
     Zotero.debug("[Tree Style Tabs] TreeTabManager initialized");
   }
 
@@ -51,38 +52,111 @@ export class TreeTabManager {
       const zoteroTabs = (win as any).Zotero_Tabs;
       if (!zoteroTabs?._tabs) return;
 
+      Zotero.debug("[Tree Style Tabs] ===== SYNCING WITH ZOTERO TABS =====");
+      
       const currentTabIds = new Set<string>();
       const selectedTabId = zoteroTabs.selectedID;
+      const idMigrationMap = new Map<string, string>(); // oldId -> newId
 
-      // Process all Zotero tabs
+      // First pass: Try to match existing tabs by title to migrate IDs
       zoteroTabs._tabs.forEach((zt: any) => {
         currentTabIds.add(zt.id);
+        const ztTitle = zt.title || zt.type;
 
-        if (!this.tabs.has(zt.id)) {
-          // New tab - add to tree
-          this.addTab(zt.id, zt.title || zt.type, zt.type);
+        // Check if this tab already exists with a different ID (by matching title)
+        let existingNode: TabNode | undefined;
+        for (const [tabId, node] of this.tabs.entries()) {
+          if (node.nodeType === "tab" && node.title === ztTitle && !currentTabIds.has(tabId)) {
+            existingNode = node;
+            idMigrationMap.set(tabId, zt.id); // oldId -> newId
+            Zotero.debug(`[Tree Style Tabs] Migrating tab ID: ${tabId} -> ${zt.id} for "${ztTitle}"`);
+            break;
+          }
+        }
+
+        if (existingNode) {
+          // Migrate the existing node to new ID
+          this.tabs.delete(existingNode.id);
+          existingNode.id = zt.id;
+          existingNode.title = ztTitle;
+          existingNode.type = zt.type;
+          existingNode.selected = zt.id === selectedTabId;
+          this.tabs.set(zt.id, existingNode);
+        } else if (!this.tabs.has(zt.id)) {
+          // Truly new tab - add to tree
+          this.addTab(zt.id, ztTitle, zt.type);
+          Zotero.debug(`[Tree Style Tabs] Added new tab: ${zt.id} - "${ztTitle}"`);
         } else {
-          // Update existing tab
+          // Update existing tab with same ID
           const node = this.tabs.get(zt.id)!;
-          node.title = zt.title || zt.type;
+          node.title = ztTitle;
           node.type = zt.type;
           node.selected = zt.id === selectedTabId;
         }
       });
 
+      // Second pass: Update parent/child IDs based on migration
+      if (idMigrationMap.size > 0) {
+        Zotero.debug(`[Tree Style Tabs] Migrating ${idMigrationMap.size} tab IDs in tree structure`);
+        
+        // Update parent IDs
+        this.tabs.forEach((node) => {
+          if (node.parentId && idMigrationMap.has(node.parentId)) {
+            const newParentId = idMigrationMap.get(node.parentId)!;
+            Zotero.debug(`[Tree Style Tabs] Updating parent: ${node.parentId} -> ${newParentId} for ${node.id}`);
+            node.parentId = newParentId;
+          }
+        });
+
+        // Update child IDs
+        this.tabs.forEach((node) => {
+          node.childIds = node.childIds.map((childId) => {
+            if (idMigrationMap.has(childId)) {
+              const newChildId = idMigrationMap.get(childId)!;
+              Zotero.debug(`[Tree Style Tabs] Updating child: ${childId} -> ${newChildId}`);
+              return newChildId;
+            }
+            return childId;
+          });
+        });
+
+        // Update roots
+        this.structure.roots = this.structure.roots.map((rootId) => {
+          if (idMigrationMap.has(rootId)) {
+            const newRootId = idMigrationMap.get(rootId)!;
+            Zotero.debug(`[Tree Style Tabs] Updating root: ${rootId} -> ${newRootId}`);
+            return newRootId;
+          }
+          return rootId;
+        });
+
+        // Update collapsed set
+        const newCollapsed = new Set<string>();
+        this.structure.collapsed.forEach((collapsedId) => {
+          const newId = idMigrationMap.get(collapsedId) || collapsedId;
+          newCollapsed.add(newId);
+        });
+        this.structure.collapsed = newCollapsed;
+      }
+
       // Remove tabs that no longer exist in Zotero
-      for (const tabId of this.tabs.keys()) {
-        if (!currentTabIds.has(tabId)) {
+      for (const [tabId, node] of this.tabs.entries()) {
+        if (node.nodeType === "tab" && !currentTabIds.has(tabId)) {
+          Zotero.debug(`[Tree Style Tabs] Removing deleted tab: ${tabId} - "${node.title}"`);
           this.removeTabFromTree(tabId);
         }
       }
 
       // Update selection state
       this.tabs.forEach((node) => {
-        node.selected = node.id === selectedTabId;
+        node.selected = node.nodeType === "tab" && node.id === selectedTabId;
       });
 
+      this.recalculateLevels();
       this.saveTreeStructure();
+      
+      Zotero.debug("[Tree Style Tabs] ===== SYNC COMPLETE =====");
+      this.debugTreeStructure();
     } catch (e) {
       Zotero.debug(`[Tree Style Tabs] Error syncing tabs: ${e}`);
     }
@@ -108,6 +182,7 @@ export class TreeTabManager {
       collapsed: false,
       title,
       type,
+      nodeType: "tab",
       selected: false,
     };
 
@@ -129,17 +204,74 @@ export class TreeTabManager {
   }
 
   /**
-   * Remove a tab from the tree
+   * Create a placeholder group node
    */
-  static removeTabFromTree(id: string): void {
+  static createGroup(title = "New Group", parentId: string | null = null): TabNode {
+    const id = `group-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
+
+    const node: TabNode = {
+      id,
+      parentId,
+      childIds: [],
+      level: 0,
+      collapsed: false,
+      title,
+      type: "group",
+      nodeType: "group",
+      selected: false,
+    };
+
+    Zotero.debug(`[Tree Style Tabs] Created group ${id}`);
+
+    if (parentId && this.tabs.has(parentId)) {
+      const parent = this.tabs.get(parentId)!;
+      parent.childIds.push(id);
+      node.level = parent.level + 1;
+    } else {
+      node.parentId = null;
+      this.structure.roots.push(id);
+    }
+
+    this.tabs.set(id, node);
+    this.saveTreeStructure();
+
+    return node;
+  }
+
+  /**
+   * Rename a tab/group
+   */
+  static renameNode(id: string, title: string): void {
     const node = this.tabs.get(id);
     if (!node) return;
 
-    // Handle children - either close them or promote them
-    const collapseOnClose = getPref<boolean>("collapseOnClose") ?? true;
+    node.title = title.trim() || node.title;
+    this.saveTreeStructure();
+  }
 
-    if (collapseOnClose) {
-      // Move children to the same level (promote them to parent's parent)
+  /**
+   * Remove a tab from the tree
+   */
+  static removeTabFromTree(id: string): void {
+    const collapseOnClose = getPref<boolean>("collapseOnClose") ?? true;
+    this.removeNodeFromTree(id, collapseOnClose);
+  }
+
+  /**
+   * Remove a placeholder group (promote children)
+   */
+  static removeGroup(id: string): void {
+    this.removeNodeFromTree(id, true);
+  }
+
+  /**
+   * Remove a node from the tree
+   */
+  private static removeNodeFromTree(id: string, promoteChildren: boolean): void {
+    const node = this.tabs.get(id);
+    if (!node) return;
+
+    if (promoteChildren) {
       for (const childId of node.childIds) {
         const child = this.tabs.get(childId);
         if (child) {
@@ -151,7 +283,6 @@ export class TreeTabManager {
             const grandparent = this.tabs.get(node.parentId);
             grandparent?.childIds.push(childId);
           } else {
-            // Promote to root
             const idx = this.structure.roots.indexOf(childId);
             if (idx === -1) {
               this.structure.roots.push(childId);
@@ -161,7 +292,6 @@ export class TreeTabManager {
       }
     }
 
-    // Remove from parent's children
     if (node.parentId) {
       const parent = this.tabs.get(node.parentId);
       if (parent) {
@@ -169,15 +299,11 @@ export class TreeTabManager {
         if (idx !== -1) parent.childIds.splice(idx, 1);
       }
     } else {
-      // Remove from roots
       const idx = this.structure.roots.indexOf(id);
       if (idx !== -1) this.structure.roots.splice(idx, 1);
     }
 
-    // Remove from collapsed set
     this.structure.collapsed.delete(id);
-
-    // Remove the tab
     this.tabs.delete(id);
     this.saveTreeStructure();
   }
@@ -194,6 +320,19 @@ export class TreeTabManager {
       if (child) {
         child.level = parent.level + 1;
         this.updateChildLevels(childId);
+      }
+    }
+  }
+
+  /**
+   * Recalculate levels for all nodes
+   */
+  private static recalculateLevels(): void {
+    for (const rootId of this.structure.roots) {
+      const root = this.tabs.get(rootId);
+      if (root) {
+        root.level = 0;
+        this.updateChildLevels(rootId);
       }
     }
   }
@@ -523,6 +662,9 @@ export class TreeTabManager {
           parentId: node.parentId,
           childIds: node.childIds,
           collapsed: node.collapsed,
+          nodeType: node.nodeType,
+          title: node.title,
+          type: node.type,
         })),
         roots: this.structure.roots,
         collapsed: Array.from(this.structure.collapsed),
@@ -569,8 +711,9 @@ export class TreeTabManager {
               childIds: tabData.childIds || [],
               level: 0,
               collapsed: tabData.collapsed || false,
-              title: "",
-              type: "",
+              title: tabData.title || "",
+              type: tabData.type || "",
+              nodeType: tabData.nodeType || "tab",
               selected: false,
             });
           }
@@ -579,5 +722,21 @@ export class TreeTabManager {
     } catch (e) {
       Zotero.debug(`[Tree Style Tabs] Error loading tree structure: ${e}`);
     }
+  }
+
+  /**
+   * Debug: dump tree structure
+   */
+  static debugTreeStructure(): void {
+    Zotero.debug(`[Tree Style Tabs] ===== TREE STRUCTURE =====`);
+    Zotero.debug(`  Roots: ${this.structure.roots.join(", ")}`);
+    Zotero.debug(`  Collapsed IDs: ${Array.from(this.structure.collapsed).join(", ")}`);
+    Zotero.debug(`  Total tabs: ${this.tabs.size}`);
+    this.tabs.forEach((tab) => {
+      const parentStr = tab.parentId ? ` parent="${tab.parentId}"` : " (ROOT)";
+      const childrenStr = tab.childIds.length > 0 ? ` children=[${tab.childIds.join(", ")}]` : " (no children)";
+      Zotero.debug(`    ${tab.id}: level=${tab.level}${parentStr}${childrenStr} "${tab.title}"`);
+    });
+    Zotero.debug(`[Tree Style Tabs] ========================`);
   }
 }

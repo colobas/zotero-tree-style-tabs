@@ -96,12 +96,9 @@ A Zotero 8 plugin that provides tree-style tab management, inspired by [Tree Sty
 | `npm start` | Start development with hot reload |
 | `npm run build` | Build production version |
 | `npm run build:dev` | Build development version |
-| `npm run install:dev` | Build the dev XPI and install it into Zotero (uses `ZOTERO_BIN`/`ZOTERO_PROFILE` from `.env`) |
 | `npm run lint` | Fix code style with Prettier and ESLint |
 | `npm run lint:check` | Check code style |
 | `npm run release` | Build and bump version |
-
-To quickly re-deploy the plugin during development, run `npm run install:dev`. It rebuilds the dev package, creates `treestyletabs-dev.xpi`, and launches Zotero with the `-install-addon` flag so the addon is installed automatically into the profile you configured.
 
 ### Project Structure
 

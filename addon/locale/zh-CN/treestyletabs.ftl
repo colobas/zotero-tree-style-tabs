@@ -11,6 +11,12 @@ treestyletabs-context-expand-all = 全部展开
 treestyletabs-context-make-root = 设为根标签页
 treestyletabs-context-move-up = 上移
 treestyletabs-context-move-down = 下移
+treestyletabs-context-rename-group = 重命名分组
+treestyletabs-context-delete-group = 删除分组
+
+treestyletabs-toolbar-new-group = 新建分组
+treestyletabs-toolbar-toggle = 切换侧边栏
+treestyletabs-toolbar-show = 显示侧边栏
 
 treestyletabs-pref-title = 树形标签页设置
 treestyletabs-pref-display = 显示设置

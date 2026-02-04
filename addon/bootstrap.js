@@ -35,6 +35,11 @@ async function startup({ id, version, resourceURI, rootURI }, reason) {
     ["content", "__addonRef__", rootURI + "content/"],
   ]);
 
+  const console = Zotero.getMainWindow()?.console || Services.console;
+  if (typeof ChromeUtils !== "undefined" && ChromeUtils.importESModule && !ChromeUtils.import) {
+    ChromeUtils.import = ChromeUtils.importESModule;
+  }
+
   // Load scripts
   Services.scriptloader.loadSubScript(
     `${rootURI}/content/scripts/index.js`,
@@ -59,6 +64,19 @@ async function startup({ id, version, resourceURI, rootURI }, reason) {
 
   // Register shutdown callback
   Zotero.__addonInstance__.hooks.onStartup();
+
+  const mainWindow = Zotero.getMainWindow();
+  if (mainWindow) {
+    if (mainWindow.document.readyState === "complete") {
+      Zotero.__addonInstance__.hooks.onMainWindowLoad(mainWindow);
+    } else {
+      mainWindow.addEventListener(
+        "load",
+        () => Zotero.__addonInstance__.hooks.onMainWindowLoad(mainWindow),
+        { once: true },
+      );
+    }
+  }
 
   log("startup finished");
 }

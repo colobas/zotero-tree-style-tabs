@@ -19,6 +19,7 @@ class Addon {
     ui: {
       sidebar?: HTMLElement;
       tabList?: HTMLElement;
+      toggleHandle?: HTMLElement;
       registeredElements: WeakMap<Window, HTMLElement[]>;
     };
   };
@@ -57,6 +58,7 @@ export interface TabNode {
   collapsed: boolean;
   title: string;
   type: string;
+  nodeType: "tab" | "group";
   selected: boolean;
 }
 

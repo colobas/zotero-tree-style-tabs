@@ -9,7 +9,7 @@ export function initLocale() {
   
   // Register FTL files for Fluent localization
   try {
-    Zotero.Fluent.addResourceId?.(`${config.addonRef}-ftl`);
+    Zotero.Fluent?.addResourceId?.(`${config.addonRef}-ftl`);
   } catch (e) {
     Zotero.debug(`[Tree Style Tabs] Failed to add Fluent resource: ${e}`);
   }
@@ -36,6 +36,11 @@ export function getString(key: string, params?: Record<string, string>): string 
     "context-make-root": "Make Root Tab",
     "context-move-up": "Move Up",
     "context-move-down": "Move Down",
+    "context-rename-group": "Rename Group",
+    "context-delete-group": "Delete Group",
+    "toolbar-new-group": "New Group",
+    "toolbar-toggle": "Toggle Sidebar",
+    "toolbar-show": "Show Sidebar",
     "empty": "No tabs open",
   };
 

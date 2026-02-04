@@ -4,3 +4,7 @@ build/
 .env
 .DS_Store
 *.log
+notes/
+tmp-*.mjs
+pi-clipboard-*.png
+full_logs.txt

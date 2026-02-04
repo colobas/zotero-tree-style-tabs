@@ -2,15 +2,24 @@
 
 /* ===== Sidebar Container ===== */
 #treestyletabs-sidebar {
+  position: relative;
   display: flex;
   flex-direction: column;
   background: var(--material-sidepanel);
   border-right: 1px solid var(--material-border);
   min-width: 180px;
   max-width: 400px;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: hidden;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  font-size: 13px;
+  font-size: 11px;
+  height: 100%;
+  min-height: 0;
+  flex-shrink: 0;
+}
+
+#treestyletabs-sidebar[hidden] {
+  display: none;
 }
 
 #treestyletabs-sidebar.position-right {
@@ -21,61 +30,101 @@
 /* ===== Sidebar Header ===== */
 #treestyletabs-header {
   display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
   align-items: center;
-  justify-content: space-between;
-  padding: 8px 12px;
-  background: var(--material-toolbar);
+  gap: 8px;
+  padding: 4px 8px;
+  background: var(--material-sidepanel);
   border-bottom: 1px solid var(--material-border);
-  min-height: 36px;
+  min-height: 28px;
+  height: 28px;
+  overflow: hidden;
 }
 
 #treestyletabs-title {
-  font-weight: 600;
-  font-size: 12px;
+  font-weight: 500;
+  font-size: 11px;
   color: var(--fill-primary);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.3px;
+  line-height: 1;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+#treestyletabs-title::after {
+  content: "|";
+  margin-left: 8px;
+  color: var(--fill-quaternary, rgba(0, 0, 0, 0.2));
+  font-weight: 300;
 }
 
 #treestyletabs-toolbar {
   display: flex;
-  gap: 4px;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  gap: 1px;
+  align-items: center;
+  flex: 0 0 auto;
 }
 
 .treestyletabs-toolbar-button {
-  background: transparent;
-  border: none;
-  padding: 4px 6px;
-  border-radius: 4px;
-  cursor: pointer;
-  color: var(--fill-secondary);
-  font-size: 14px;
+  background: transparent !important;
+  border: 1px solid transparent !important;
+  padding: 2px 4px !important;
+  border-radius: 3px !important;
+  cursor: pointer !important;
+  color: var(--fill-secondary, #666) !important;
+  font-size: 12px !important;
+  line-height: 1 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  min-width: 20px !important;
+  height: 20px !important;
+  transition: all 0.15s ease !important;
 }
 
 .treestyletabs-toolbar-button:hover {
-  background: var(--material-button-hover);
-  color: var(--fill-primary);
+  background: var(--material-button-hover, rgba(0, 0, 0, 0.05)) !important;
+  border: 1px solid var(--material-border, rgba(0, 0, 0, 0.15)) !important;
+  color: var(--fill-primary, #333) !important;
 }
 
 /* ===== Tab List Container ===== */
 #treestyletabs-tablist {
-  flex: 1;
+  flex: 1 1 auto;
   overflow-y: auto;
   overflow-x: hidden;
   padding: 4px 0;
+  min-height: 0;
+  width: 100%;
 }
 
 /* ===== Tab Item ===== */
+.treestyletabs-tab,
+.treestyletabs-tab * {
+  box-sizing: border-box;
+}
+
 .treestyletabs-tab {
-  display: flex;
-  align-items: center;
-  padding: 6px 8px;
-  margin: 1px 4px;
-  border-radius: 6px;
-  cursor: pointer;
-  user-select: none;
-  transition: background-color 0.15s ease;
-  position: relative;
+  display: flex !important;
+  align-items: center !important;
+  padding: 4px 6px !important;
+  margin: 1px 4px !important;
+  border-radius: 6px !important;
+  cursor: grab !important;
+  user-select: none !important;
+  transition: background-color 0.15s ease !important;
+  position: relative !important;
+  white-space: nowrap !important;
+  font-size: 10px !important;
+  overflow: hidden !important;
+  min-width: 0 !important;
+  height: 24px !important;
+  max-height: 24px !important;
+  line-height: 24px !important;
+  flex-wrap: nowrap !important;
 }
 
 .treestyletabs-tab:hover {
@@ -84,24 +133,30 @@
 
 .treestyletabs-tab.selected {
   background: var(--color-accent10);
+  border-left: 3px solid var(--color-accent);
 }
 
 .treestyletabs-tab.selected .treestyletabs-tab-title {
   font-weight: 500;
 }
 
+.treestyletabs-tab.group .treestyletabs-tab-title {
+  font-weight: 600;
+}
+
 /* ===== Twisty (Expand/Collapse) ===== */
 .treestyletabs-twisty {
-  width: 16px;
-  height: 16px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  cursor: pointer;
-  opacity: 0.6;
-  transition: transform 0.15s ease, opacity 0.15s ease;
-  margin-right: 2px;
+  width: 16px !important;
+  height: 16px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  flex-shrink: 0 !important;
+  cursor: pointer !important;
+  opacity: 0.6 !important;
+  transition: transform 0.15s ease, opacity 0.15s ease !important;
+  margin-right: 4px !important;
+  line-height: 1 !important;
 }
 
 .treestyletabs-twisty:hover {
@@ -109,14 +164,15 @@
 }
 
 .treestyletabs-twisty::before {
-  content: "";
-  border: 4px solid transparent;
-  border-left: 6px solid currentColor;
-  border-right: 0;
+  content: "▶";
+  display: block;
+  color: var(--fill-primary, #333);
+  font-size: 10px;
+  line-height: 1;
 }
 
 .treestyletabs-tab.expanded > .treestyletabs-twisty::before {
-  transform: rotate(90deg);
+  content: "▼";
 }
 
 .treestyletabs-tab:not(.has-children) > .treestyletabs-twisty {
@@ -125,13 +181,15 @@
 
 /* ===== Tab Favicon ===== */
 .treestyletabs-tab-favicon {
-  width: 16px;
-  height: 16px;
-  flex-shrink: 0;
-  margin-right: 8px;
-  background-size: contain;
-  background-repeat: no-repeat;
-  background-position: center;
+  width: 16px !important;
+  height: 16px !important;
+  flex-shrink: 0 !important;
+  margin-right: 6px !important;
+  background-size: contain !important;
+  background-repeat: no-repeat !important;
+  background-position: center !important;
+  line-height: 1 !important;
+  display: inline-block !important;
 }
 
 .treestyletabs-tab-favicon.default-icon::before {
@@ -141,28 +199,49 @@
 
 /* ===== Tab Title ===== */
 .treestyletabs-tab-title {
+  flex: 1 1 auto !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+  color: var(--fill-primary) !important;
+  font-size: 10px !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+  line-height: 24px !important;
+  height: 24px !important;
+  display: block !important;
+}
+
+.treestyletabs-title-edit {
   flex: 1;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  font-size: 12px;
+  padding: 2px 4px;
+  border-radius: 4px;
+  border: 1px solid var(--material-border);
+  background: var(--material-background, #fff);
   color: var(--fill-primary);
-  font-size: 13px;
+}
+
+.treestyletabs-tab.editing {
+  background: var(--material-button-hover);
 }
 
 /* ===== Close Button ===== */
 .treestyletabs-tab-close {
-  width: 18px;
-  height: 18px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 4px;
-  opacity: 0;
-  transition: opacity 0.15s ease, background-color 0.15s ease;
-  flex-shrink: 0;
-  margin-left: 4px;
-  font-size: 14px;
-  color: var(--fill-secondary);
+  width: 18px !important;
+  height: 18px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  border-radius: 4px !important;
+  opacity: 0 !important;
+  transition: opacity 0.15s ease, background-color 0.15s ease !important;
+  flex-shrink: 0 !important;
+  margin-left: 4px !important;
+  margin-right: 4px !important;
+  font-size: 14px !important;
+  color: var(--fill-secondary) !important;
+  line-height: 1 !important;
 }
 
 .treestyletabs-tab:hover .treestyletabs-tab-close,
@@ -206,7 +285,7 @@
 
 /* Hidden tab children */
 .treestyletabs-tab.hidden {
-  display: none;
+  display: none !important;
 }
 
 /* ===== Drop Indicator for Drag & Drop ===== */
@@ -220,9 +299,15 @@
   z-index: 100;
 }
 
+.treestyletabs-tab.dragging {
+  opacity: 0.5 !important;
+  cursor: grabbing !important;
+}
+
 .treestyletabs-tab.drop-target {
-  outline: 2px solid var(--color-accent);
-  outline-offset: -2px;
+  outline: 2px solid var(--color-accent, #2196F3) !important;
+  outline-offset: -2px !important;
+  background: var(--color-accent10, rgba(33, 150, 243, 0.1)) !important;
 }
 
 /* ===== Empty State ===== */
@@ -250,28 +335,69 @@
   background: var(--color-accent);
 }
 
+/* ===== Toggle Handle ===== */
+#treestyletabs-toggle-handle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  min-width: 32px;
+  height: 32px;
+  cursor: pointer;
+  background: var(--color-accent10);
+  color: var(--fill-primary);
+  border-right: 1px solid var(--material-border);
+  user-select: none;
+  box-shadow: 0 0 6px rgba(0, 0, 0, 0.15);
+  font-size: 14px;
+  pointer-events: auto;
+  border-radius: 6px;
+}
+
+#treestyletabs-toggle-handle[hidden] {
+  display: none;
+}
+
+#treestyletabs-toggle-handle.position-right {
+  border-right: none;
+  border-left: 1px solid var(--material-border);
+}
+
+#treestyletabs-toggle-handle:hover {
+  background: var(--material-button-hover);
+  color: var(--fill-primary);
+}
+
 /* ===== Context Menu ===== */
 .treestyletabs-context-menu {
-  position: fixed;
-  background: var(--material-menu);
-  border: 1px solid var(--material-border);
-  border-radius: 6px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  padding: 4px 0;
-  z-index: 1000;
-  min-width: 180px;
+  position: fixed !important;
+  display: block !important;
+  visibility: visible !important;
+  background: #ffffff !important;
+  border: 1px solid #cccccc !important;
+  border-radius: 6px !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25) !important;
+  padding: 4px 0 !important;
+  z-index: 99999 !important;
+  min-width: 180px !important;
+  max-height: 400px !important;
+  overflow-y: auto !important;
 }
 
 .treestyletabs-context-menu-item {
-  padding: 8px 12px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 8px;
+  padding: 8px 12px !important;
+  cursor: pointer !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  white-space: nowrap !important;
+  font-size: 11px !important;
+  color: #000000 !important;
+  background: transparent !important;
 }
 
 .treestyletabs-context-menu-item:hover {
-  background: var(--material-button-hover);
+  background: #e8e8e8 !important;
 }
 
 .treestyletabs-context-menu-separator {
@@ -327,5 +453,18 @@
   
   .treestyletabs-tab.selected {
     background: rgba(100, 149, 237, 0.2);
+  }
+  
+  .treestyletabs-context-menu {
+    background: #2a2a2a !important;
+    border-color: #555555 !important;
+  }
+  
+  .treestyletabs-context-menu-item {
+    color: #ffffff !important;
+  }
+  
+  .treestyletabs-context-menu-item:hover {
+    background: #3a3a3a !important;
   }
 }

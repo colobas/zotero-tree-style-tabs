@@ -54,6 +54,15 @@ await build({
 
 console.log("TypeScript compiled successfully");
 
+// Patch ChromeUtils.import for Zotero 8 (use importESModule)
+if (existsSync(join(scriptsDir, "index.js"))) {
+  replaceInFileSync({
+    files: join(scriptsDir, "index.js"),
+    from: /ChromeUtils\.import\(/g,
+    to: "ChromeUtils.importESModule(",
+  });
+}
+
 // Replace placeholders in build files
 const replacements = {
   __addonName__: config.addonName,
@@ -107,7 +116,7 @@ writeFileSync(join(iconsDir, "favicon@0.5x.png"), Buffer.from(iconSvg)); // Plac
 // Build development XPI for quick installation
 const devXpiName = `${config.addonRef}-dev.xpi`;
 const devXpiPath = join(rootDir, devXpiName);
-await compressing.zip.compressDir(buildDir, devXpiPath);
+await compressing.zip.compressDir(buildDir, devXpiPath, { ignoreBase: true });
 console.log(`Dev XPI created: ${devXpiName}`);
 
 // Build production XPI when releasing
@@ -115,7 +124,7 @@ if (isProduction) {
   const xpiName = `${config.addonRef}-${pkg.version}.xpi`;
   const xpiPath = join(rootDir, xpiName);
   
-  await compressing.zip.compressDir(buildDir, xpiPath);
+  await compressing.zip.compressDir(buildDir, xpiPath, { ignoreBase: true });
   console.log(`XPI created: ${xpiName}`);
 }
 
