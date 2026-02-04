@@ -56,6 +56,12 @@ export class SidebarUI {
     sidebar.style.setProperty("flex-grow", "0", "important");
     sidebar.style.setProperty("flex-basis", `${prefs.sidebarWidth}px`, "important");
 
+    // On macOS with native tab bar hidden, add top padding to avoid traffic light buttons
+    const isMac = Zotero.isMac;
+    if (isMac && prefs.hideNativeTabBar) {
+      sidebar.style.setProperty("padding-top", "40px", "important");
+    }
+
     if (prefs.position === "right") {
       sidebar.classList.add("position-right");
     }
@@ -141,10 +147,19 @@ export class SidebarUI {
     newGroupBtn.title = getString("toolbar-new-group");
     setupButton(newGroupBtn);
     newGroupBtn.addEventListener("click", () => {
-      Zotero.debug("[Tree Style Tabs] New group button clicked");
       const node = TreeTabManager.createGroup();
       this.refresh(win);
       this.startInlineEdit(win, node.id);
+    });
+
+    // Toggle native tab bar button
+    const toggleNativeBtn = doc.createElement("button");
+    toggleNativeBtn.className = "treestyletabs-toolbar-button";
+    toggleNativeBtn.textContent = "⊡";  // Tab icon
+    toggleNativeBtn.title = "Toggle native tab bar";
+    setupButton(toggleNativeBtn);
+    toggleNativeBtn.addEventListener("click", () => {
+      this.toggleNativeTabBar(win);
     });
 
     // Toggle sidebar button
@@ -160,6 +175,7 @@ export class SidebarUI {
     toolbar.appendChild(collapseAllBtn);
     toolbar.appendChild(expandAllBtn);
     toolbar.appendChild(newGroupBtn);
+    toolbar.appendChild(toggleNativeBtn);
     toolbar.appendChild(toggleBtn);
 
     header.appendChild(title);
@@ -178,6 +194,11 @@ export class SidebarUI {
 
     // Load stylesheet
     this.loadStylesheet(win);
+
+    // Hide native tab bar if preference is enabled
+    if (prefs.hideNativeTabBar) {
+      this.hideNativeTabBar(win);
+    }
 
     // Find insertion point - try to insert next to the tab bar
     const tabsToolbar = doc.querySelector("#tabs-deck") || 
@@ -206,8 +227,6 @@ export class SidebarUI {
 
     // Track elements for cleanup
     this.trackElement(win, sidebar);
-
-    Zotero.debug("[Tree Style Tabs] Sidebar created");
   }
 
   /**
@@ -229,6 +248,99 @@ export class SidebarUI {
     doc.head?.appendChild(link);
 
     this.trackElement(win, link);
+  }
+
+  /**
+   * Hide the native Zotero tab bar
+   */
+  private static hideNativeTabBar(win: Window): void {
+    const doc = win.document;
+
+    // Debug: Find all potential tab bar elements
+    Zotero.debug("[Tree Style Tabs] Searching for native tab bar elements...");
+    
+    // NOTE: Do NOT hide #tabs-deck - it contains the actual tab content!
+    // Only hide the tab bar UI elements
+    const ids = [
+      'zotero-tabs-toolbar',  // The toolbar containing tabs
+      'tab-bar-container',     // The container for the tab bar
+      'zotero-tab-toolbar',    // Alternative tab toolbar
+      'TabsToolbar',           // Firefox-style tab toolbar
+      'tab-bar',               // Generic tab bar
+      'tabs-box',              // Tab box
+    ];
+    
+    let hiddenCount = 0;
+    
+    // Apply inline styles directly to each element
+    // (Inline styles beat everything - even CSS with !important)
+    ids.forEach(id => {
+      const el = doc.getElementById(id) as HTMLElement;
+      if (el) {
+        el.style.setProperty("display", "none", "important");
+        el.style.setProperty("visibility", "collapse", "important");
+        el.setAttribute("hidden", "true");
+        hiddenCount++;
+        Zotero.debug(`[Tree Style Tabs] Hidden element: #${id} (${el.tagName})`);
+      }
+    });
+
+    // Add padding to main content area to avoid overlapping with macOS window buttons
+    const mainWindow = doc.getElementById("main-window");
+    if (mainWindow) {
+      (mainWindow as HTMLElement).style.paddingTop = "0px"; // Reset, let OS handle it
+    }
+
+    if (hiddenCount > 0) {
+      Zotero.debug(`[Tree Style Tabs] Successfully hid ${hiddenCount} native tab bar elements`);
+    } else {
+      Zotero.debug("[Tree Style Tabs] WARNING: No native tab bar elements found!");
+    }
+  }
+
+  /**
+   * Show the native Zotero tab bar
+   */
+  private static showNativeTabBar(win: Window): void {
+    const doc = win.document;
+    
+    const ids = [
+      'zotero-tabs-toolbar',
+      'tab-bar-container',
+      'zotero-tab-toolbar',
+      'TabsToolbar',
+      'tab-bar',
+      'tabs-box',
+    ];
+    
+    ids.forEach(id => {
+      const el = doc.getElementById(id) as HTMLElement;
+      if (el) {
+        el.style.removeProperty("display");
+        el.style.removeProperty("visibility");
+        el.removeAttribute("hidden");
+        Zotero.debug(`[Tree Style Tabs] Restored element: #${id}`);
+      }
+    });
+
+    Zotero.debug("[Tree Style Tabs] Native tab bar restored");
+  }
+
+  /**
+   * Toggle native tab bar visibility
+   */
+  static toggleNativeTabBar(win: Window): void {
+    const prefs = getPrefs();
+    const newValue = !prefs.hideNativeTabBar;
+    setPref("hideNativeTabBar", newValue);
+    
+    if (newValue) {
+      this.hideNativeTabBar(win);
+    } else {
+      this.showNativeTabBar(win);
+    }
+    
+    Zotero.debug(`[Tree Style Tabs] Native tab bar ${newValue ? 'hidden' : 'shown'}`);
   }
 
   /**
@@ -338,12 +450,6 @@ export class SidebarUI {
     // Get tabs in tree order
     const tabs = TreeTabManager.getTabsInTreeOrder();
 
-    // Debug: Log tab types to understand what we have
-    Zotero.debug("[Tree Style Tabs] Available tabs:");
-    tabs.forEach(tab => {
-      Zotero.debug(`  - ${tab.id}: nodeType=${tab.nodeType}, type=${tab.type}, title=${tab.title}`);
-    });
-
     // Filter out library/collection tabs - only show actual items
     const filteredTabs = tabs.filter((tab) => {
       // Keep groups always
@@ -356,8 +462,6 @@ export class SidebarUI {
       return true;
     });
 
-    Zotero.debug(`[Tree Style Tabs] Filtered tabs: ${filteredTabs.length} of ${tabs.length}`);
-
     if (filteredTabs.length === 0) {
       const empty = doc.createElement("div");
       empty.id = "treestyletabs-empty-state";
@@ -369,7 +473,6 @@ export class SidebarUI {
     // Render each tab
     for (const tab of filteredTabs) {
       const isVisible = TreeTabManager.isTabVisible(tab.id);
-      Zotero.debug(`[Tree Style Tabs] Tab ${tab.id} (${tab.title}): collapsed=${tab.collapsed}, visible=${isVisible}, hasChildren=${tab.childIds.length > 0}`);
       const tabEl = this.createTabElement(win, tab, !isVisible);
       tabList.appendChild(tabEl);
     }
@@ -396,6 +499,7 @@ export class SidebarUI {
     // Apply indentation and force single-line display
     const indent = tab.level * prefs.indentSize;
     tabEl.style.paddingLeft = `${8 + indent}px`;
+    tabEl.style.paddingRight = "8px";  // Add right padding for breathing room
     tabEl.style.height = "24px";
     tabEl.style.maxHeight = "24px";
     tabEl.style.overflow = "hidden";
@@ -405,7 +509,6 @@ export class SidebarUI {
     // Handle visibility with inline styles (inline styles always win)
     if (hidden) {
       tabEl.style.display = "none";
-      Zotero.debug(`[Tree Style Tabs] HIDING TAB: ${tab.id} (${tab.title})`);
     } else {
       tabEl.style.display = "flex";
     }
@@ -419,7 +522,6 @@ export class SidebarUI {
     }
     if (tab.childIds.length > 0) {
       tabEl.classList.add("has-children");
-      Zotero.debug(`[Tree Style Tabs] Tab ${tab.id} has ${tab.childIds.length} children`);
     }
     if (!tab.collapsed && tab.childIds.length > 0) tabEl.classList.add("expanded");
     if (hidden) tabEl.classList.add("hidden");
@@ -435,20 +537,11 @@ export class SidebarUI {
       twisty.style.color = "#333";
       twisty.style.fontSize = "12px";
       twisty.style.cursor = "pointer";
-      Zotero.debug(`[Tree Style Tabs] Twisty added for ${tab.id}: ${twisty.textContent}`);
     }
     twisty.addEventListener("click", (e) => {
       e.stopPropagation();
-      if (tab.childIds.length === 0) {
-        Zotero.debug(`[Tree Style Tabs] Twisty clicked on tab without children: ${tab.id}`);
-        return;
-      }
-      Zotero.debug(`[Tree Style Tabs] ===== TWISTY CLICKED =====`);
-      Zotero.debug(`[Tree Style Tabs] Toggling collapse for tab: ${tab.id} (${tab.title}), current collapsed: ${tab.collapsed}`);
-      TreeTabManager.debugTreeStructure();
+      if (tab.childIds.length === 0) return;
       TreeTabManager.toggleCollapsed(tab.id);
-      Zotero.debug(`[Tree Style Tabs] After toggle, collapsed: ${TreeTabManager.getTab(tab.id)?.collapsed}`);
-      TreeTabManager.debugTreeStructure();
       this.refresh(win);
     });
 
@@ -536,8 +629,6 @@ export class SidebarUI {
     tabEl.addEventListener("contextmenu", (e) => {
       e.preventDefault();
       e.stopPropagation();
-      Zotero.debug(`[Tree Style Tabs] Context menu for ${tab.id} (${tab.nodeType}) at (${e.clientX}, ${e.clientY})`);
-      
       this.showContextMenu(win, tab.id, e);
     });
 
@@ -548,7 +639,6 @@ export class SidebarUI {
       tabEl.classList.add("dragging");
       // Visual feedback with inline styles
       tabEl.style.opacity = "0.5";
-      Zotero.debug(`[Tree Style Tabs] Drag started: ${tab.id}`);
     });
 
     tabEl.addEventListener("dragend", () => {
@@ -562,7 +652,6 @@ export class SidebarUI {
         (el as HTMLElement).style.outline = "";
         (el as HTMLElement).style.backgroundColor = "";
       });
-      Zotero.debug(`[Tree Style Tabs] Drag ended`);
     });
 
     tabEl.addEventListener("dragover", (e) => {
@@ -573,7 +662,6 @@ export class SidebarUI {
         // Visual feedback with inline styles
         tabEl.style.outline = "2px solid #2196F3";
         tabEl.style.backgroundColor = "rgba(33, 150, 243, 0.1)";
-        Zotero.debug(`[Tree Style Tabs] Drop target: ${tab.id}`);
       }
     });
 
@@ -687,7 +775,6 @@ export class SidebarUI {
     tabId: string,
     event: MouseEvent
   ): void {
-    Zotero.debug("[Tree Style Tabs] showContextMenu called for tab: " + tabId);
     this.hideContextMenu(win);
 
     const doc = win.document;
@@ -709,31 +796,16 @@ export class SidebarUI {
     // Get sidebar and tab list for positioning
     const sidebar = this.data?.ui.sidebar;
     const tabList = this.data?.ui.tabList;
-    Zotero.debug(`[Tree Style Tabs] sidebar: ${!!sidebar}, tabList: ${!!tabList}`);
-    if (!sidebar || !tabList) {
-      Zotero.debug("[Tree Style Tabs] Missing sidebar or tabList, cannot show menu");
-      return;
-    }
+    if (!sidebar || !tabList) return;
     
     // Get the tab element that was right-clicked
     const targetEl = event.target as HTMLElement;
     const tabEl = targetEl.closest('.treestyletabs-tab') as HTMLElement;
-    
-    if (!tabEl) {
-      Zotero.debug("[Tree Style Tabs] No tab element found");
-      return;
-    }
-    
-    Zotero.debug("[Tree Style Tabs] Tab element found, creating menu");
+    if (!tabEl) return;
     
     // Get bounding rectangles - use viewport coordinates (fixed positioning)
     const sidebarRect = sidebar.getBoundingClientRect();
     const tabRect = tabEl.getBoundingClientRect();
-    const tabListRect = tabList.getBoundingClientRect();
-    
-    Zotero.debug(`[Tree Style Tabs] Sidebar rect: ${sidebarRect.left},${sidebarRect.top} ${sidebarRect.width}x${sidebarRect.height}`);
-    Zotero.debug(`[Tree Style Tabs] Tab rect: ${tabRect.left},${tabRect.top} ${tabRect.width}x${tabRect.height}`);
-    Zotero.debug(`[Tree Style Tabs] TabList rect: ${tabListRect.left},${tabListRect.top} ${tabListRect.width}x${tabListRect.height}`);
     
     // Use fixed positioning relative to viewport (more reliable)
     // Position menu to the right of the sidebar
@@ -744,8 +816,6 @@ export class SidebarUI {
     menu.style.position = 'fixed';
     menu.style.left = `${menuLeft}px`;
     menu.style.top = `${menuTop}px`;
-    
-    Zotero.debug(`[Tree Style Tabs] Menu position set (fixed): left=${menuLeft}px, top=${menuTop}px`);
 
     const tab = TreeTabManager.getTab(tabId);
     const hasChildren = tab?.childIds && tab.childIds.length > 0;
@@ -880,23 +950,17 @@ export class SidebarUI {
     body.appendChild(menu);
     this.contextMenu = menu;
     
-    Zotero.debug(`[Tree Style Tabs] Menu appended to body. Item count: ${items.length}, menu children: ${menu.children.length}`);
-    
     // Adjust position if menu would overflow
     setTimeout(() => {
       const menuRect = menu.getBoundingClientRect();
       const viewportHeight = win.innerHeight;
       const viewportWidth = win.innerWidth;
       
-      Zotero.debug(`[Tree Style Tabs] Menu rect: ${menuRect.width}x${menuRect.height} at (${menuRect.left}, ${menuRect.top})`);
-      Zotero.debug(`[Tree Style Tabs] Viewport: ${viewportWidth}x${viewportHeight}`);
-      
       // If menu extends below viewport, move it up
       if (menuRect.bottom > viewportHeight) {
         const overflow = menuRect.bottom - viewportHeight;
         const currentTop = parseInt(menu.style.top) || 0;
         menu.style.top = `${Math.max(0, currentTop - overflow - 10)}px`;
-        Zotero.debug(`[Tree Style Tabs] Adjusted menu top to ${menu.style.top} for overflow`);
       }
       
       // If menu extends beyond right edge, position to the left of the tab
@@ -904,7 +968,6 @@ export class SidebarUI {
         const tabRect = tabEl.getBoundingClientRect();
         const leftPosition = tabRect.left - menuRect.width - 5;
         menu.style.left = `${Math.max(5, leftPosition)}px`;
-        Zotero.debug(`[Tree Style Tabs] Adjusted menu left to ${menu.style.left} for overflow`);
       }
     }, 0);
 
@@ -948,12 +1011,7 @@ export class SidebarUI {
       
       if (isHidden) {
         // Restoring sidebar
-        Zotero.debug(`[Tree Style Tabs] Restoring sidebar`);
-        
-        // Remove hidden attribute
         sidebar.removeAttribute("hidden");
-        
-        Zotero.debug(`[Tree Style Tabs] Sidebar restored. offsetWidth: ${sidebar.offsetWidth}px`);
         
         // Hide the toggle handle when sidebar is visible
         if (handle) {

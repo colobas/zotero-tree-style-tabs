@@ -37,21 +37,23 @@ function onShutdown() {
   Zotero.debug("[Tree Style Tabs] onShutdown completed");
 }
 
-function onMainWindowLoad(win: Window) {
+async function onMainWindowLoad(win: Window) {
   const addon = Zotero[config.addonInstance];
   
   if (!addon.data.alive) return;
 
   // Initialize tree tab manager
-  TreeTabManager.init(win);
+  await TreeTabManager.init(win);
 
   // Create sidebar UI
   SidebarUI.create(win);
 
-  // Initial sync with existing tabs
-  TreeTabManager.syncWithZoteroTabs(win);
-
-  Zotero.debug("[Tree Style Tabs] onMainWindowLoad completed");
+  // Wait a bit for Zotero tabs to be fully initialized, then sync
+  setTimeout(() => {
+    TreeTabManager.syncWithZoteroTabs(win);
+    SidebarUI.refresh(win);
+    Zotero.debug("[Tree Style Tabs] Initial sync and refresh completed");
+  }, 500);
 }
 
 function onMainWindowUnload(win: Window) {
@@ -120,6 +122,9 @@ function onShortcuts(type: string) {
   switch (type) {
     case "toggle-sidebar":
       SidebarUI.toggle(win);
+      break;
+    case "toggle-native-tabbar":
+      SidebarUI.toggleNativeTabBar(win);
       break;
     case "collapse-all":
       TreeTabManager.collapseAll(win);

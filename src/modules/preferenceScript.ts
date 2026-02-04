@@ -73,6 +73,17 @@ export function registerPrefsScripts(win: Window): void {
     });
   }
 
+  // Hide native tab bar checkbox
+  const hideNativeEl = doc.getElementById("treestyletabs-hidenative") as HTMLInputElement;
+  if (hideNativeEl) {
+    hideNativeEl.checked = prefs.hideNativeTabBar;
+    hideNativeEl.addEventListener("change", () => {
+      setPref("hideNativeTabBar", hideNativeEl.checked);
+      // Note: Requires restart to take effect
+      alert("Please restart Zotero for this change to take effect.");
+    });
+  }
+
   Zotero.debug("[Tree Style Tabs] Preference scripts registered");
 }
 

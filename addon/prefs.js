@@ -6,3 +6,4 @@ pref("extensions.zotero.treestyletabs.autoCollapse", false);
 pref("extensions.zotero.treestyletabs.collapseOnClose", true);
 pref("extensions.zotero.treestyletabs.showCloseButton", true);
 pref("extensions.zotero.treestyletabs.position", "left");
+pref("extensions.zotero.treestyletabs.hideNativeTabBar", true);

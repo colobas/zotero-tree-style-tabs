@@ -31,6 +31,7 @@ export const defaultPrefs = {
   collapseOnClose: true,
   showCloseButton: true,
   position: "left",
+  hideNativeTabBar: true,
 };
 
 export function getPrefs() {
@@ -42,5 +43,6 @@ export function getPrefs() {
     collapseOnClose: getPref<boolean>("collapseOnClose") ?? defaultPrefs.collapseOnClose,
     showCloseButton: getPref<boolean>("showCloseButton") ?? defaultPrefs.showCloseButton,
     position: getPref<string>("position") ?? defaultPrefs.position,
+    hideNativeTabBar: getPref<boolean>("hideNativeTabBar") ?? defaultPrefs.hideNativeTabBar,
   };
 }
