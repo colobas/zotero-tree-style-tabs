@@ -78,6 +78,45 @@ A Zotero 8 plugin providing tree-style tab management inspired by Firefox's Tree
 - Added ⊡ toolbar button for toggling
 - Added right padding to tab elements
 
+### Iteration 5: Multi-Selection & Bug Fixes
+
+**File**: `iteration-5-multi-selection.md`, `iteration-5-summary.md`, `bugfix-cascading-child-tabs.md`
+
+**Features Added**:
+- Multi-selection with Ctrl/Cmd+Click (toggle) and Shift+Click (range)
+- Selection counter in header showing "(N selected)"
+- Batch drag & drop: move multiple tabs together
+- Context menu options: close or group selected tabs
+- Keyboard shortcuts: Ctrl/Cmd+A (select all), Escape (clear)
+- Select All toolbar button (☑)
+- "Reset all tabs to root level" context menu option
+
+**Critical Bug Fixed**:
+- Cascading child tab relationships on tab reload
+- Root cause: Auto-parenting logic used `lastActiveTabId` during Zotero tab unload/reload cycles
+- Solution: Removed implicit parenting; tabs only parent via explicit drag/drop or grouping
+- New tabs now open as root-level items by default
+
+**Key Lessons**:
+- Never make implicit assumptions about relationships
+- Zotero's tab lifecycle is complex (frequent unload/reload)
+- State persistence needs careful thought (don't misuse state variables)
+- Always provide escape hatches (reset utility)
+- Log all structural changes for debugging
+
+**Technical Changes**:
+- Added `selectedTabIds: Set<string>` state management
+- JSON array format for multi-tab drag data (backward compatible with single tab)
+- Inline styles for selection highlighting (orange #fff3e0)
+- Hover effects with mouseenter/mouseleave (CSS :hover unreliable)
+- Removed `lastActiveTabId` from parent determination logic
+- Added `resetAllToRoot()` utility method
+
+**Visual Feedback**:
+- Active tab: Blue (#e3f2fd)
+- Selected tabs: Orange (#fff3e0)
+- Hover: Light gray (#f5f5f5)
+
 ---
 
 ## Architecture
