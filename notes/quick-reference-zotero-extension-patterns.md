@@ -1,6 +1,6 @@
 # Quick Reference: Zotero Extension UI Patterns
 
-**Last Updated:** February 3, 2026  
+**Last Updated:** February 4, 2026  
 **Source:** Lessons from tree-style tabs development
 
 ---
@@ -553,6 +553,141 @@ tabList.addEventListener("click", (e) => {
     handleTabClick(tabId);
   }
 });
+```
+
+---
+
+## Multi-Selection Pattern
+
+### State Management
+```javascript
+private static selectedTabIds: Set<string> = new Set();
+private static lastClickedTabId: string | null = null;
+```
+
+### Click Handler with Multi-Selection
+```javascript
+tabEl.addEventListener("click", (e) => {
+  // Ctrl/Cmd+Click: Toggle selection
+  if (e.ctrlKey || e.metaKey) {
+    e.preventDefault();
+    this.toggleTabSelection(tab.id);
+    this.lastClickedTabId = tab.id;
+    this.refresh(win);
+    return;
+  }
+  
+  // Shift+Click: Range selection
+  if (e.shiftKey && this.lastClickedTabId) {
+    e.preventDefault();
+    this.selectTabRange(this.lastClickedTabId, tab.id);
+    this.lastClickedTabId = tab.id;
+    this.refresh(win);
+    return;
+  }
+  
+  // Normal click - clear selection
+  if (!this.selectedTabIds.has(tab.id)) {
+    this.clearSelection();
+  }
+  this.lastClickedTabId = tab.id;
+  // ... handle normal click
+});
+```
+
+### Visual Highlighting
+```javascript
+// Multi-selection highlighting with inline styles
+if (this.selectedTabIds.has(tab.id)) {
+  tabEl.classList.add("multi-selected");
+  tabEl.style.backgroundColor = "#fff3e0";
+  tabEl.style.borderLeft = "3px solid #ff9800";
+}
+
+// Hover effects
+tabEl.addEventListener("mouseenter", () => {
+  if (!tab.selected && !this.selectedTabIds.has(tab.id)) {
+    tabEl.style.backgroundColor = "#f5f5f5";
+  }
+});
+
+tabEl.addEventListener("mouseleave", () => {
+  if (tab.selected) {
+    tabEl.style.backgroundColor = "#e3f2fd";
+  } else if (this.selectedTabIds.has(tab.id)) {
+    tabEl.style.backgroundColor = "#fff3e0";
+  } else {
+    tabEl.style.backgroundColor = "";
+  }
+});
+```
+
+### Multi-Tab Drag & Drop
+```javascript
+// Drag start
+const tabsToDrag = this.selectedTabIds.has(tab.id) && this.selectedTabIds.size > 0
+  ? Array.from(this.selectedTabIds)
+  : [tab.id];
+
+e.dataTransfer?.setData("text/plain", JSON.stringify(tabsToDrag));
+
+// Drop handler
+const dragData = e.dataTransfer?.getData("text/plain");
+let draggedIds: string[];
+try {
+  draggedIds = JSON.parse(dragData); // Multi-tab
+} catch {
+  draggedIds = [dragData]; // Single tab fallback
+}
+
+draggedIds.forEach(id => {
+  TreeTabManager.attachTabTo(id, targetId);
+});
+```
+
+### Selection Helper Methods
+```javascript
+clearSelection(): void {
+  this.selectedTabIds.clear();
+}
+
+toggleTabSelection(tabId: string): void {
+  if (this.selectedTabIds.has(tabId)) {
+    this.selectedTabIds.delete(tabId);
+  } else {
+    this.selectedTabIds.add(tabId);
+  }
+}
+
+selectTabRange(startId: string, endId: string): void {
+  const tabs = TreeTabManager.getTabsInTreeOrder();
+  const startIdx = tabs.findIndex(t => t.id === startId);
+  const endIdx = tabs.findIndex(t => t.id === endId);
+  
+  if (startIdx === -1 || endIdx === -1) return;
+  
+  const [from, to] = startIdx < endIdx ? [startIdx, endIdx] : [endIdx, startIdx];
+  
+  this.selectedTabIds.clear();
+  for (let i = from; i <= to; i++) {
+    if (tabs[i].nodeType === "tab") {
+      this.selectedTabIds.add(tabs[i].id);
+    }
+  }
+}
+
+selectAllTabs(win: Window): void {
+  const tabs = TreeTabManager.getTabsInTreeOrder();
+  this.selectedTabIds.clear();
+  
+  tabs.forEach(tab => {
+    if (tab.nodeType === "tab" && TreeTabManager.isTabVisible(tab.id)) {
+      this.selectedTabIds.add(tab.id);
+    }
+  });
+  
+  this.refresh(win);
+}
 ```
 
 ---

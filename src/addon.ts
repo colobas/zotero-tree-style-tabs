@@ -20,6 +20,7 @@ class Addon {
       sidebar?: HTMLElement;
       tabList?: HTMLElement;
       toggleHandle?: HTMLElement;
+      selectionCounter?: HTMLElement;
       registeredElements: WeakMap<Window, HTMLElement[]>;
     };
   };

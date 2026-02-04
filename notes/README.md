@@ -70,6 +70,25 @@ This directory contains development notes and lessons learned from building the 
   - Platform-specific adjustments: macOS needs 40px top padding
   - **DO NOT hide `#tabs-deck`** - it contains tab content, not just the bar!
 
+### Iteration 5: Multi-Selection for Batch Operations
+- **Files:**
+  - `iteration-5-multi-selection.md` (detailed tracking)
+  - `iteration-5-summary.md` (technical summary)
+- **Date:** February 4, 2026
+- **Features Implemented:**
+  - ✅ **Multi-tab selection** (Ctrl/Cmd+Click, Shift+Click)
+  - ✅ **Visual feedback** (selection counter, orange highlighting)
+  - ✅ **Batch drag & drop** (move multiple tabs together)
+  - ✅ **Context menu** for multi-selection (close all, group all)
+  - ✅ **Keyboard shortcuts** (Ctrl/Cmd+A, Escape)
+  - ✅ **Select All toolbar button**
+- **Key Patterns:**
+  - State tracking with `Set<string>` for selected tab IDs
+  - Range selection with shift+click
+  - JSON array format for multi-tab drag data
+  - Inline styles for hover and selection states
+  - Auto-clear selection after operations
+
 ## Key Lessons
 
 ### Must-Read Documents
@@ -271,6 +290,7 @@ How we know the extension is working well:
 
 ---
 
-**Last Updated:** February 4, 2026, 11:27 PST  
-**Total Issues Resolved:** 23+ (across four iterations)  
-**Key Breakthroughs:** 6 (inline styles, hidden attribute, CSS :hover unreliable, tab ID migration, Zotero 8 API migration, native tab bar hiding)
+**Last Updated:** February 4, 2026, 12:32 PST  
+**Total Issues Resolved:** 23+ (across five iterations)  
+**Key Breakthroughs:** 6 (inline styles, hidden attribute, CSS :hover unreliable, tab ID migration, Zotero 8 API migration, native tab bar hiding)  
+**Features Added:** Multi-selection support (Iteration 5)

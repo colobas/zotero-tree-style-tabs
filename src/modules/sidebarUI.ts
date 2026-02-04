@@ -20,6 +20,8 @@ export class SidebarUI {
   private static startWidth = 0;
   private static contextMenu: HTMLElement | null = null;
   private static contextTabId: string | null = null;
+  private static selectedTabIds: Set<string> = new Set();
+  private static lastClickedTabId: string | null = null;
 
   /**
    * Get addon data
@@ -81,6 +83,17 @@ export class SidebarUI {
     title.textContent = getString("title");
     title.style.whiteSpace = "nowrap";
     title.style.flexShrink = "0";
+    
+    // Selection counter
+    const selectionCounter = doc.createElement("span");
+    selectionCounter.id = "treestyletabs-selection-counter";
+    selectionCounter.style.color = "#ff9800";
+    selectionCounter.style.marginLeft = "8px";
+    selectionCounter.style.fontSize = "11px";
+    selectionCounter.style.fontWeight = "bold";
+    selectionCounter.style.whiteSpace = "nowrap";
+    selectionCounter.style.display = "none"; // Hidden by default
+    this.data.ui.selectionCounter = selectionCounter;
     
     // Separator
     const separator = doc.createElement("span");
@@ -152,6 +165,16 @@ export class SidebarUI {
       this.startInlineEdit(win, node.id);
     });
 
+    // Select all button
+    const selectAllBtn = doc.createElement("button");
+    selectAllBtn.className = "treestyletabs-toolbar-button";
+    selectAllBtn.textContent = "☑";  // Checkbox icon
+    selectAllBtn.title = "Select all tabs (Ctrl+A)";
+    setupButton(selectAllBtn);
+    selectAllBtn.addEventListener("click", () => {
+      this.selectAllTabs(win);
+    });
+
     // Toggle native tab bar button
     const toggleNativeBtn = doc.createElement("button");
     toggleNativeBtn.className = "treestyletabs-toolbar-button";
@@ -175,10 +198,12 @@ export class SidebarUI {
     toolbar.appendChild(collapseAllBtn);
     toolbar.appendChild(expandAllBtn);
     toolbar.appendChild(newGroupBtn);
+    toolbar.appendChild(selectAllBtn);
     toolbar.appendChild(toggleNativeBtn);
     toolbar.appendChild(toggleBtn);
 
     header.appendChild(title);
+    header.appendChild(selectionCounter);
     header.appendChild(separator);
     header.appendChild(toolbar);
     sidebar.appendChild(header);
@@ -221,6 +246,27 @@ export class SidebarUI {
 
     // Create resize handle
     this.createResizeHandle(win, sidebar);
+
+    // Keyboard shortcuts for selection
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Only handle if sidebar is visible
+      if (sidebar.hasAttribute("hidden")) return;
+      
+      // Ctrl/Cmd+A: Select all
+      if ((e.ctrlKey || e.metaKey) && e.key === "a") {
+        e.preventDefault();
+        this.selectAllTabs(win);
+      }
+      
+      // Escape: Clear selection
+      if (e.key === "Escape" && this.selectedTabIds.size > 0) {
+        e.preventDefault();
+        this.clearSelection();
+        this.refresh(win);
+      }
+    };
+    
+    doc.addEventListener("keydown", handleKeyDown);
 
     // Initial render
     this.refresh(win);
@@ -444,6 +490,17 @@ export class SidebarUI {
     const doc = win.document;
     const prefs = getPrefs();
 
+    // Update selection counter
+    const selectionCounter = this.data?.ui.selectionCounter;
+    if (selectionCounter) {
+      if (this.selectedTabIds.size > 0) {
+        selectionCounter.textContent = `(${this.selectedTabIds.size} selected)`;
+        selectionCounter.style.display = "inline";
+      } else {
+        selectionCounter.style.display = "none";
+      }
+    }
+
     // Clear existing tabs
     tabList.innerHTML = "";
 
@@ -476,6 +533,71 @@ export class SidebarUI {
       const tabEl = this.createTabElement(win, tab, !isVisible);
       tabList.appendChild(tabEl);
     }
+  }
+
+  /**
+   * Clear multi-selection
+   */
+  private static clearSelection(): void {
+    this.selectedTabIds.clear();
+    Zotero.debug("[Tree Style Tabs] Selection cleared");
+  }
+
+  /**
+   * Toggle a tab's selection state
+   */
+  private static toggleTabSelection(tabId: string): void {
+    if (this.selectedTabIds.has(tabId)) {
+      this.selectedTabIds.delete(tabId);
+      Zotero.debug(`[Tree Style Tabs] Deselected tab: ${tabId}`);
+    } else {
+      this.selectedTabIds.add(tabId);
+      Zotero.debug(`[Tree Style Tabs] Selected tab: ${tabId}`);
+    }
+  }
+
+  /**
+   * Select a range of tabs (for Shift+Click)
+   */
+  private static selectTabRange(startId: string, endId: string): void {
+    const tabs = TreeTabManager.getTabsInTreeOrder();
+    const startIdx = tabs.findIndex(t => t.id === startId);
+    const endIdx = tabs.findIndex(t => t.id === endId);
+    
+    if (startIdx === -1 || endIdx === -1) return;
+    
+    const [from, to] = startIdx < endIdx ? [startIdx, endIdx] : [endIdx, startIdx];
+    
+    // Clear existing selection
+    this.selectedTabIds.clear();
+    
+    // Select range
+    for (let i = from; i <= to; i++) {
+      // Only select actual tabs, not groups
+      if (tabs[i].nodeType === "tab") {
+        this.selectedTabIds.add(tabs[i].id);
+      }
+    }
+    
+    Zotero.debug(`[Tree Style Tabs] Selected range: ${to - from + 1} tab(s)`);
+  }
+
+  /**
+   * Select all visible tabs
+   */
+  private static selectAllTabs(win: Window): void {
+    const tabs = TreeTabManager.getTabsInTreeOrder();
+    this.selectedTabIds.clear();
+    
+    tabs.forEach(tab => {
+      // Only select visible tabs (not groups)
+      if (tab.nodeType === "tab" && TreeTabManager.isTabVisible(tab.id)) {
+        this.selectedTabIds.add(tab.id);
+      }
+    });
+    
+    Zotero.debug(`[Tree Style Tabs] Selected all: ${this.selectedTabIds.size} tab(s)`);
+    this.refresh(win);
   }
 
   /**
@@ -519,6 +641,14 @@ export class SidebarUI {
       // Add inline styles for reliable highlighting
       tabEl.style.backgroundColor = "#e3f2fd";
       tabEl.style.borderLeft = "3px solid #2196F3";
+    }
+    
+    // Multi-selection highlighting
+    if (this.selectedTabIds.has(tab.id)) {
+      tabEl.classList.add("multi-selected");
+      // Use inline styles for reliable highlighting
+      tabEl.style.backgroundColor = "#fff3e0";
+      tabEl.style.borderLeft = "3px solid #ff9800";
     }
     if (tab.childIds.length > 0) {
       tabEl.classList.add("has-children");
@@ -588,6 +718,25 @@ export class SidebarUI {
     tabEl.appendChild(title);
     tabEl.appendChild(closeBtn);
 
+    // Hover effect with inline styles (CSS :hover unreliable in Zotero)
+    tabEl.addEventListener("mouseenter", () => {
+      // Don't override selection/multi-selection highlighting
+      if (!tab.selected && !this.selectedTabIds.has(tab.id)) {
+        tabEl.style.backgroundColor = "#f5f5f5";
+      }
+    });
+
+    tabEl.addEventListener("mouseleave", () => {
+      // Restore proper background based on state
+      if (tab.selected) {
+        tabEl.style.backgroundColor = "#e3f2fd";
+      } else if (this.selectedTabIds.has(tab.id)) {
+        tabEl.style.backgroundColor = "#fff3e0";
+      } else {
+        tabEl.style.backgroundColor = "";
+      }
+    });
+
     // Click to select tab - but prevent selection during actual drag operations
     let mouseDownTime = 0;
     let mouseDownPos = { x: 0, y: 0 };
@@ -599,7 +748,6 @@ export class SidebarUI {
 
     tabEl.addEventListener("click", (e) => {
       // Check if this was actually a drag operation
-      // The dragstart event will have fired if it was a real drag
       const timeSinceMouseDown = Date.now() - mouseDownTime;
       const dx = Math.abs(e.clientX - mouseDownPos.x);
       const dy = Math.abs(e.clientY - mouseDownPos.y);
@@ -609,12 +757,37 @@ export class SidebarUI {
         return;
       }
       
+      // Multi-selection support
+      if (e.ctrlKey || e.metaKey) {
+        // Ctrl/Cmd+Click: Toggle selection
+        e.preventDefault();
+        this.toggleTabSelection(tab.id);
+        this.lastClickedTabId = tab.id;
+        this.refresh(win);
+        return;
+      }
+      
+      if (e.shiftKey && this.lastClickedTabId) {
+        // Shift+Click: Range selection
+        e.preventDefault();
+        this.selectTabRange(this.lastClickedTabId, tab.id);
+        this.lastClickedTabId = tab.id;
+        this.refresh(win);
+        return;
+      }
+      
       // Normal click behavior
       if (isGroup) {
+        // Clear selection when clicking group
+        this.clearSelection();
         TreeTabManager.toggleCollapsed(tab.id);
         this.refresh(win);
       } else {
+        // Always clear selection on normal click
+        this.clearSelection();
+        this.lastClickedTabId = tab.id;
         TreeTabManager.selectTab(win, tab.id);
+        // Note: refresh will happen via onNotify when Zotero confirms the tab selection
       }
     });
 
@@ -635,16 +808,32 @@ export class SidebarUI {
     // Drag & drop support
     tabEl.draggable = true;
     tabEl.addEventListener("dragstart", (e) => {
-      e.dataTransfer?.setData("text/plain", tab.id);
+      // If this tab is part of selection, drag all selected tabs
+      const tabsToDrag = this.selectedTabIds.has(tab.id) && this.selectedTabIds.size > 0
+        ? Array.from(this.selectedTabIds)
+        : [tab.id];
+      
+      e.dataTransfer?.setData("text/plain", JSON.stringify(tabsToDrag));
       tabEl.classList.add("dragging");
-      // Visual feedback with inline styles
-      tabEl.style.opacity = "0.5";
+      
+      // Visual feedback with inline styles for all dragged tabs
+      tabsToDrag.forEach(id => {
+        const el = doc.querySelector(`[data-tab-id="${id}"]`) as HTMLElement;
+        if (el) {
+          el.classList.add("dragging");
+          el.style.opacity = "0.5";
+        }
+      });
+      
+      Zotero.debug(`[Tree Style Tabs] Dragging ${tabsToDrag.length} tab(s)`);
     });
 
     tabEl.addEventListener("dragend", () => {
-      tabEl.classList.remove("dragging");
-      // Restore opacity
-      tabEl.style.opacity = "1";
+      // Remove dragging state from all tabs
+      doc.querySelectorAll(".treestyletabs-tab.dragging").forEach((el) => {
+        el.classList.remove("dragging");
+        (el as HTMLElement).style.opacity = "1";
+      });
       
       // Remove drop-target from all tabs and restore their styles
       doc.querySelectorAll(".treestyletabs-tab.drop-target").forEach((el) => {
@@ -682,11 +871,35 @@ export class SidebarUI {
     tabEl.addEventListener("drop", (e) => {
       e.preventDefault();
       tabEl.classList.remove("drop-target");
+      // Remove visual feedback
+      tabEl.style.outline = "";
+      tabEl.style.backgroundColor = "";
 
-      const draggedId = e.dataTransfer?.getData("text/plain");
-      if (draggedId && draggedId !== tab.id) {
-        // Attach dragged tab as child of this tab
-        TreeTabManager.attachTabTo(draggedId, tab.id);
+      const dragData = e.dataTransfer?.getData("text/plain");
+      if (!dragData) return;
+      
+      let draggedIds: string[];
+      try {
+        // Try to parse as JSON array (multi-selection)
+        draggedIds = JSON.parse(dragData);
+      } catch {
+        // Fallback to single tab ID
+        draggedIds = [dragData];
+      }
+      
+      // Filter out the drop target itself
+      draggedIds = draggedIds.filter(id => id !== tab.id);
+      
+      if (draggedIds.length > 0) {
+        Zotero.debug(`[Tree Style Tabs] Dropping ${draggedIds.length} tab(s) onto ${tab.id}`);
+        
+        // Attach all dragged tabs as children of this tab
+        draggedIds.forEach(draggedId => {
+          TreeTabManager.attachTabTo(draggedId, tab.id);
+        });
+        
+        // Clear selection after drop
+        this.clearSelection();
         this.refresh(win);
       }
     });
@@ -819,8 +1032,53 @@ export class SidebarUI {
 
     const tab = TreeTabManager.getTab(tabId);
     const hasChildren = tab?.childIds && tab.childIds.length > 0;
+    const isMultiSelect = this.selectedTabIds.size > 1;
+    const selectedCount = this.selectedTabIds.size;
 
     const items: SidebarContextMenuItem[] = [];
+
+    // Multi-selection context menu
+    if (isMultiSelect && this.selectedTabIds.has(tabId)) {
+      items.push({
+        type: "action",
+        label: `Close ${selectedCount} selected tabs`,
+        action: () => {
+          Array.from(this.selectedTabIds).forEach(id => {
+            const t = TreeTabManager.getTab(id);
+            if (t?.nodeType === "tab") {
+              TreeTabManager.closeTab(win, id);
+            }
+          });
+          this.clearSelection();
+        },
+      });
+
+      items.push({
+        type: "action",
+        label: `Group ${selectedCount} selected tabs`,
+        action: () => {
+          const group = TreeTabManager.createGroup("New Group");
+          Array.from(this.selectedTabIds).forEach(id => {
+            TreeTabManager.attachTabTo(id, group.id);
+          });
+          this.clearSelection();
+          this.refresh(win);
+        },
+      });
+
+      items.push({ type: "separator" });
+
+      items.push({
+        type: "action",
+        label: "Clear selection",
+        action: () => {
+          this.clearSelection();
+          this.refresh(win);
+        },
+      });
+
+      items.push({ type: "separator" });
+    }
 
     if (tab?.nodeType === "group") {
       items.push({
@@ -914,6 +1172,32 @@ export class SidebarUI {
         this.refresh(win);
       },
     });
+
+    // Add selection options if not already in multi-select mode
+    if (!isMultiSelect) {
+      items.push({ type: "separator" });
+
+      items.push({
+        type: "action",
+        label: "Select all tabs",
+        action: () => {
+          this.selectAllTabs(win);
+        },
+      });
+
+      items.push({ type: "separator" });
+
+      items.push({
+        type: "action",
+        label: "Reset all tabs to root level",
+        action: () => {
+          if (confirm("This will move all tabs to the root level, removing all tree relationships. Continue?")) {
+            TreeTabManager.resetAllToRoot();
+            this.refresh(win);
+          }
+        },
+      });
+    }
 
     for (const item of items) {
       if (item.type === "separator") {

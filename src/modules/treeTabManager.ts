@@ -154,12 +154,9 @@ export class TreeTabManager {
     type: string,
     parentId: string | null = null
   ): TabNode {
-    // Determine parent - if no explicit parent, use the last active tab
-    const effectiveParentId = parentId || this.lastActiveTabId;
-
     const node: TabNode = {
       id,
-      parentId: effectiveParentId,
+      parentId,
       childIds: [],
       level: 0,
       collapsed: false,
@@ -170,8 +167,8 @@ export class TreeTabManager {
     };
 
     // If there's a parent, add as child and calculate level
-    if (effectiveParentId && this.tabs.has(effectiveParentId)) {
-      const parent = this.tabs.get(effectiveParentId)!;
+    if (parentId && this.tabs.has(parentId)) {
+      const parent = this.tabs.get(parentId)!;
       parent.childIds.push(id);
       node.level = parent.level + 1;
     } else {
@@ -330,8 +327,10 @@ export class TreeTabManager {
 
     for (const id of ids) {
       const zt = zoteroTabs?._tabs?.find((t: any) => t.id === id);
+      // Only add if it's truly a new tab (not in our tree yet)
       if (zt && !this.tabs.has(id)) {
-        this.addTab(id, zt.title || zt.type, zt.type);
+        // For new tabs, add as root (don't auto-parent to last active)
+        this.addTab(id, zt.title || zt.type, zt.type, null);
       }
     }
   }
@@ -623,6 +622,38 @@ export class TreeTabManager {
     }
 
     return true;
+  }
+
+  /**
+   * Reset all tabs to root level (remove all parent relationships)
+   */
+  static resetAllToRoot(): void {
+    const allTabIds: string[] = [];
+    
+    // Collect all tab IDs and reset their relationships
+    this.tabs.forEach((node) => {
+      if (node.nodeType === "tab") {
+        node.parentId = null;
+        node.childIds = [];
+        node.level = 0;
+        node.collapsed = false;
+        allTabIds.push(node.id);
+      }
+    });
+    
+    // Remove all groups
+    this.tabs.forEach((node, id) => {
+      if (node.nodeType === "group") {
+        this.tabs.delete(id);
+      }
+    });
+    
+    // Set roots to all tabs
+    this.structure.roots = allTabIds;
+    this.structure.collapsed.clear();
+    
+    this.saveTreeStructure();
+    Zotero.debug(`[Tree Style Tabs] Reset ${allTabIds.length} tabs to root level`);
   }
 
   /**

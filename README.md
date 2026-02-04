@@ -9,7 +9,8 @@ A Zotero 8 plugin that provides tree-style tab management, inspired by [Tree Sty
 
 - **Tree-style Tab Sidebar**: View and manage your tabs in a vertical tree hierarchy
 - **Hide Native Tab Bar**: Automatically hides Zotero's horizontal tab bar (toggleable)
-- **Parent-Child Relationships**: New tabs automatically become children of the currently selected tab
+- **Multi-Selection**: Select multiple tabs with Ctrl/Cmd+Click or Shift+Click for batch operations
+- **Batch Operations**: Drag & drop multiple tabs together, close selected tabs, or group them with one click
 - **Collapsible Trees**: Collapse and expand tab subtrees to reduce clutter
 - **Drag & Drop**: Reorganize tabs by dragging them to new positions or parents
 - **Tab Groups**: Create custom groups to organize your tabs
@@ -21,6 +22,11 @@ A Zotero 8 plugin that provides tree-style tab management, inspired by [Tree Sty
 
 ### v1.0.0 (February 2026)
 
+- ✅ **Multi-Selection**: Select multiple tabs with Ctrl/Cmd+Click or Shift+Click
+- ✅ **Batch Operations**: Drag multiple tabs together, close or group selected tabs
+- ✅ **Selection Counter**: Visual feedback showing how many tabs are selected
+- ✅ **Bug Fix**: Fixed cascading child tab relationships on tab reload
+- ✅ **Reset Utility**: Context menu option to reset all tabs to root level
 - ✅ **Hide Native Tab Bar**: Automatically hides Zotero's horizontal tab bar (toggleable with ⊡ button)
 - ✅ **Zotero 8 Compatibility**: Fixed deprecated file I/O APIs for Zotero 8
 - ✅ **Startup Fix**: Tabs now load correctly from saved state on restart
@@ -177,12 +183,15 @@ The sidebar header includes quick-action buttons:
 - **⊟** - Collapse all tabs
 - **⊞** - Expand all tabs
 - **＋** - Create a new tab group
+- **☑** - Select all tabs (Ctrl/Cmd+A)
 - **⊡** - Toggle native tab bar visibility
 - **⟷** - Toggle sidebar visibility
 
 ### Basic Operations
 
 - **Select Tab**: Click on a tab in the sidebar
+- **Multi-Select**: Ctrl/Cmd+Click to toggle selection, Shift+Click to select range
+- **Batch Operations**: Select multiple tabs, then drag together or use context menu
 - **Close Tab**: Click the × button or right-click → Close Tab
 - **Collapse/Expand**: Click the twisty arrow (▶/▼) or right-click → Collapse/Expand
 - **Move Tab**: Drag and drop to reorder or change parent
@@ -191,11 +200,18 @@ The sidebar header includes quick-action buttons:
 
 ### Keyboard Shortcuts
 
-*Coming in future versions*
+- **Ctrl/Cmd+A** - Select all tabs
+- **Escape** - Clear selection
+- **Ctrl/Cmd+Click** - Toggle individual tab selection
+- **Shift+Click** - Select range of tabs
 
 ### Context Menu
 
 Right-click on any tab for options:
+- **Multi-Selection Options** (when multiple tabs selected):
+  - Close N selected tabs
+  - Group N selected tabs
+  - Clear selection
 - Close Tab
 - Close Tab and Children
 - Collapse/Expand Tree
@@ -204,6 +220,8 @@ Right-click on any tab for options:
 - Delete Group (for groups)
 - Make Root Tab
 - Move Up / Move Down
+- Select all tabs
+- Reset all tabs to root level
 
 ## How It Works
 
@@ -211,11 +229,12 @@ Tree Style Tabs integrates with Zotero's tab system by:
 
 1. **Observing Tab Events**: Listens to Zotero's tab notifier for add/close/select events
 2. **Managing Tree Structure**: Maintains parent-child relationships in a separate data structure
-3. **Rendering Sidebar**: Displays tabs in a tree view with proper indentation
-4. **Hiding Native Tab Bar**: Uses inline styles to hide Zotero's horizontal tab bar (toggleable)
-5. **Persisting State**: Saves tree structure to `<Zotero Data>/treestyletabs.json`
+3. **Multi-Selection Support**: Tracks selected tabs with Set data structure for efficient batch operations
+4. **Rendering Sidebar**: Displays tabs in a tree view with proper indentation and visual feedback
+5. **Hiding Native Tab Bar**: Uses inline styles to hide Zotero's horizontal tab bar (toggleable)
+6. **Persisting State**: Saves tree structure to `<Zotero Data>/treestyletabs.json`
 
-New tabs automatically become children of the currently active tab, creating a natural browsing hierarchy similar to Firefox's Tree Style Tab.
+New tabs open as root-level items. You can organize them by dragging & dropping or using the context menu to create parent-child relationships.
 
 ### Technical Implementation
 
