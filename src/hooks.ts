@@ -93,12 +93,26 @@ function onNotify(
     switch (event) {
       case "add":
         TreeTabManager.onTabAdded(win, ids, extraData);
+        // Delay sync to allow Zotero to populate tab titles
+        // Try multiple times with increasing delays to catch late-loading titles
+        [100, 500, 1500].forEach(delay => {
+          setTimeout(() => {
+            if (Zotero[config.addonInstance]?.data.alive) {
+              TreeTabManager.syncWithZoteroTabs(win);
+              SidebarUI.refresh(win);
+            }
+          }, delay);
+        });
         break;
       case "close":
         TreeTabManager.onTabClosed(win, ids);
         break;
       case "select":
         TreeTabManager.onTabSelected(win, ids);
+        break;
+      case "modify":
+        // Tab was modified (e.g., title changed) - sync to update
+        TreeTabManager.syncWithZoteroTabs(win);
         break;
     }
     SidebarUI.refresh(win);

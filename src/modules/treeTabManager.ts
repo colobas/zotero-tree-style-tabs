@@ -44,6 +44,42 @@ export class TreeTabManager {
   }
 
   /**
+   * Get a meaningful title for a Zotero tab
+   */
+  private static getTabTitle(zt: any): string {
+    // If we have a title, use it
+    if (zt.title && zt.title.trim() !== "") {
+      return zt.title;
+    }
+
+    // For reader tabs, try to get the title from the tab data
+    if (zt.type === "reader" && zt.data) {
+      // Try to get the item title
+      if (zt.data.itemID) {
+        try {
+          const item = Zotero.Items.get(zt.data.itemID);
+          if (item) {
+            const itemTitle = item.getField("title");
+            if (itemTitle && itemTitle.trim() !== "") {
+              return itemTitle;
+            }
+          }
+        } catch (e) {
+          Zotero.debug(`[Tree Style Tabs] Could not get item title: ${e}`);
+        }
+      }
+      
+      // Fallback to attachment filename if available
+      if (zt.data.title && zt.data.title.trim() !== "") {
+        return zt.data.title;
+      }
+    }
+
+    // Fallback to type as last resort
+    return zt.type || "Tab";
+  }
+
+  /**
    * Sync our tree data with Zotero's actual tabs
    */
   static syncWithZoteroTabs(win: Window): void {
@@ -63,7 +99,7 @@ export class TreeTabManager {
       // First pass: Try to match existing tabs by title to migrate IDs
       zoteroTabs._tabs.forEach((zt: any) => {
         currentTabIds.add(zt.id);
-        const ztTitle = zt.title || zt.type;
+        const ztTitle = this.getTabTitle(zt);
 
         // Check if this tab already exists with a different ID (by matching title)
         let existingNode: TabNode | undefined;
